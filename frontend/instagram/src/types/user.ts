@@ -6,7 +6,6 @@ export interface User {
   profilePath: string;
   bio: string;
 }
-
 export interface UserState extends RootState {
   isLoading: boolean;
   isSuccess: boolean;
@@ -30,5 +29,6 @@ export enum UserActions {
   setFetching = "setFetching",
   setSuccess = "setSuccess",
   setError = "setError",
-  updateProfile = "updateProfile"
+  updateProfile = "updateProfile",
+  uploadImage = "uploadImage"
 }

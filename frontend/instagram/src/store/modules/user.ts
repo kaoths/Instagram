@@ -12,8 +12,9 @@ import {
   MutationTree,
   StoreOptions
 } from "vuex";
+
 import axios from "axios";
-import { AuthMutations } from "@/types/auth";
+import { AuthActions, AuthMutations } from "@/types/auth";
 import { RootState, rootState } from "@/store/modules/index";
 import { cloneDeep } from "lodash";
 
@@ -23,7 +24,7 @@ const state: UserState = {
 };
 
 const getters: GetterTree<UserState, RootState> = {
-  [UserGetters.getUser]: state => state.user
+  // [UserGetters.getUsers]: state => state.user
 };
 
 const mutations: MutationTree<UserState> = {
@@ -33,35 +34,28 @@ const mutations: MutationTree<UserState> = {
 };
 
 const actions: ActionTree<UserState, RootState> = {
-  [UserActions.fetchUser]: async ({ commit, getters }) => {
-    if (getters.getUser) {
-      try {
-        // Get /user
-        const response = await axios.get("/user");
-        const responseData: User = response.data;
-        commit(UserMutations.setUser, responseData);
-      } catch {
-        // TODO show error user fetching failed
-      }
+  [UserActions.fetchUser]: async ({ commit, dispatch }) => {
+    try {
+      const { data } = await axios.get("/user/me");
+      commit(UserMutations.setUser, data);
+    } catch {
+      await dispatch(AuthActions.logout, {}, { root: true });
     }
   },
-  [UserActions.updateProfile]: async (
-    { commit },
-    updatedProfile: Partial<User> | User
-  ) => {
+  [UserActions.updateProfile]: async ({ commit }, data: Partial<User>) => {
     try {
-      // Patch /user/:id/updateProfile
-      const response = await axios.patch(
-        `/user/${updatedProfile._id}/updateProfile`
-      );
-      if (response.status === 200) {
-        const responseData: User = response.data;
-        commit(AuthMutations.setUser, responseData);
-      } else {
-        // TODO show error updateProfile failed
-      }
-    } catch {
-      // TODO show error
+      await axios.put(`/user/me`, data);
+    } catch (e) {
+      console.error(e);
+    }
+  },
+  [UserActions.uploadImage]: async ({ commit, dispatch }, formData) => {
+    console.log(formData);
+    try {
+      await axios.post("/user/me/image", formData);
+      await dispatch(UserActions.fetchUser);
+    } catch (e) {
+      console.error(e);
     }
   }
 };
@@ -75,9 +69,3 @@ const UserModule: Module<UserState, RootState> = {
 };
 
 export default UserModule;
-
-// to get state in store
-// this.$store.state.search.transcribeMessage;
-
-// to dispatch
-// this.$store.dispatch('search/start')

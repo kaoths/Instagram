@@ -2,75 +2,57 @@
   <div class="plain-bg">
     <div class="margin-container pt-12">
       <h2 className="head">Edit Profile</h2>
-      <v-row>
-        <v-col class="col-5">
-          <v-card flat class="pa-5" color="#FAFAFA">
-            <v-text-field
-              class="mb-6"
-              v-model="username"
-              :rules="[rules.required]"
-              label="Username"
-              required
-            ></v-text-field>
-            <v-text-field
-              v-model="password1"
-              :append-icon="showPassword1 ? 'mdi-eye' : 'mdi-eye-off'"
-              :rules="[rules.required, rules.min]"
-              :type="showPassword1 ? 'text' : 'password'"
-              label="Password"
-              hint="At least 8 characters"
-              counter
-              @click:append="showPassword1 = !showPassword1"
-            ></v-text-field>
-            <v-text-field
-              v-model="password2"
-              :append-icon="showPassword2 ? 'mdi-eye' : 'mdi-eye-off'"
-              :rules="[rules.required, rules.min]"
-              :type="showPassword2 ? 'text' : 'password'"
-              label="Password"
-              hint="At least 8 characters"
-              counter
-              @click:append="showPassword2 = !showPassword2"
-            ></v-text-field>
-          </v-card>
-        </v-col>
-        <v-col class="col-5 offset-1">
-          <v-file-input
-            flat
-            label="Upload new picture"
-            prepend-icon="mdi-camera"
-          ></v-file-input>
-          <v-textarea flat name="bio" label="Bio"></v-textarea>
-        </v-col>
-      </v-row>
-      <v-row>
-        <v-col class="col-4">
-          <v-btn class="primary-btn my-2" block @click="submit" to="/login">
-            Submit Edit
-          </v-btn>
-        </v-col>
-      </v-row>
+      <v-file-input
+        flat
+        label="Upload new picture"
+        prepend-icon="mdi-camera"
+        @change="setFile"
+      ></v-file-input>
+      <v-textarea flat name="bio" label="Bio" v-model="editBio"></v-textarea>
+      <v-btn class="primary-btn my-2" block @click="submit">
+        Submit Edit
+      </v-btn>
     </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: "UpdateProfile",
-  data: () => ({
-    username: "",
-    showPassword1: false,
-    showPassword2: false,
-    password1: "",
-    password2: "",
-    rules: {
-      required: value => !!value || "Required.",
-      min: v => v.length >= 8 || "Min 8 characters",
-      emailMatch: () => "The email and password you entered don't match"
+<script lang="ts">
+import { Component, Vue } from "vue-property-decorator";
+import { State, Action, namespace } from "vuex-class";
+import { User, UserActions } from "@/types/user";
+import router from "../router";
+const userModule = namespace("user");
+
+@Component
+export default class UpdateProfile extends Vue {
+  @userModule.State("user") private user!: User;
+  @userModule.Action(UserActions.fetchUser) private fetchUser!: Function;
+  @userModule.Action(UserActions.uploadImage) private uploadImage!: Function;
+  @userModule.Action(UserActions.updateProfile)
+  private updateProfile!: Function;
+
+  private editBio = "";
+  private file: any = null;
+
+  async mounted() {
+    await this.fetchUser();
+    this.editBio = this.user.bio;
+  }
+
+  setFile(file: any) {
+    this.file = file;
+  }
+
+  submit() {
+    if (this.file) {
+      const formData = new FormData();
+      formData.append("image", this.file);
+      this.uploadImage(formData);
     }
-  }),
-  methods: {}
-};
+    this.updateProfile({ bio: this.editBio });
+    router.push("/profile");
+  }
+}
 </script>
 
 <style lang="scss">
