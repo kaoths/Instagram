@@ -1,4 +1,16 @@
-import { Body, Controller, Param, Post, Put, UploadedFile, UseInterceptors, Get, Query, Patch } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Param,
+  Post,
+  Put,
+  UploadedFile,
+  UseInterceptors,
+  Get,
+  Query,
+  Patch,
+  Delete,
+} from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { User } from "src/decorators/user.decorator";
@@ -9,12 +21,18 @@ import { S3Service } from "src/s3/s3.service";
 import { paginate } from "src/utils/pagination.utils";
 import { PostService } from "./post.service";
 import { Page } from "../utils/pagination.utils";
+import { CommentService } from "src/comment/comment.service";
+import { CommentModel } from "src/model/comment.model";
 
 @ApiTags("Post")
 @ApiBearerAuth()
 @Controller("post")
 export class PostController {
-  constructor(private readonly postService: PostService, private readonly s3Service: S3Service) {}
+  constructor(
+    private readonly postService: PostService,
+    private readonly commentService: CommentService,
+    private readonly s3Service: S3Service
+  ) {}
 
   @Get()
   @ApiQuery({ name: "page", schema: { type: "integer" }, required: false })
@@ -30,16 +48,29 @@ export class PostController {
 
   @Get("me")
   async findOwnedPost(@User() user: UserDto): Promise<PostModel[]> {
-    return this.postService.findByUserId(user._id);
+    const posts: PostModel[] = await this.postService.findByUserId(user._id);
+    return this.populatePosts(posts);
   }
 
   @Get("other")
   @ApiQuery({ name: "limit", schema: { type: "integer" }, required: true })
-  async findOtherPost(@User() user: UserDto, @Query('limit') limit: string) : Promise<PostModel[]> {
+  async findOtherPost(@User() user: UserDto, @Query("limit") limit: string): Promise<PostModel[]> {
+    let posts: PostModel[];
     if (limit) {
-      return this.postService.findOtherUserId(user._id, parseInt(limit))
+      posts = await this.postService.findOtherUserId(user._id, parseInt(limit));
     }
-    return this.postService.findOtherUserId(user._id, 1000)
+    posts = await this.postService.findOtherUserId(user._id, 1000);
+    return this.populatePosts(posts);
+  }
+
+  async populatePosts(posts: PostModel[]): Promise<PostModel[]> {
+    return Promise.all(
+      posts.map(async (post: PostModel) => {
+        let comments: CommentModel[] = await this.commentService.findComment(post._id);
+        post["comments"] = comments;
+        return post;
+      })
+    );
   }
 
   @Get("user/:uid")
@@ -64,8 +95,20 @@ export class PostController {
     this.postService.updateCaption(postId, user._id, body);
   }
 
+  @Delete(":pid")
+  async deletePost(@Param("pid") pid: string, @User() user: UserDto) {
+    await this.postService.deletePost(pid, user._id);
+    await this.commentService.deleteCommentByPostId(pid);
+    await this.s3Service.deleteImage(`user_${user._id}/posts/${pid}.jpg`);
+  }
+
   @Post(":id/like")
-  toggleLike(@User() user: UserDto, @Param("id") id: string ) {
-    return this.postService.toggleLike( id, user._id);
+  toggleLike(@User() user: UserDto, @Param("id") postId: string): Promise<number> {
+    return this.postService.toggleLike(postId, user._id);
+  }
+
+  @Get(":pid/comment")
+  async findComment(@Param("pid") postId: string): Promise<CommentModel[]> {
+    return this.commentService.findComment(postId);
   }
 }

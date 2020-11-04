@@ -1,8 +1,8 @@
 <template>
   <div class="plain-bg">
-    <div class="margin-container px-12 px-xs-0">
+    <div class="margin-container">
       <v-row class="py-6">
-        <v-col align-self="center" class="col-1">
+        <v-col align-self="center">
           <v-avatar height="7em" width="7em">
             <v-img v-bind:src="user.imageUrl" />
           </v-avatar>
@@ -24,19 +24,6 @@
               Edit
             </v-btn>
           </v-row>
-          <v-row class="px-3 col-12" no-gutters>
-            <v-col class="col-4 pa-0" align-self="center"
-              ><h5 class="h5-first-child">{{ userPosts.length }} Posts</h5></v-col
-            >
-            <!-- <v-col class="col-4 pa-0" align-self="center"
-              ><h5>{{ user.followerCount }} Followers</h5></v-col
-            >
-            <v-col class="col-4 pa-0" align-self="center"
-              ><h5 class="h5-last-child">
-                {{ user.followingCount }} Followings
-              </h5></v-col
-            > -->
-          </v-row>
         </v-col>
         <v-col
           align-self="center"
@@ -51,7 +38,7 @@
           :key="img._id"
           class="col-md-3 col-sm-4 col-xl-2 col-12"
         >
-          <v-card @click="selectImage(img.imageUrl, img.caption)">
+          <v-card @click="selectImage(img._id, img.imageUrl, img.caption, img.createdDate)">
             <v-img aspect-ratio="1" :src="img.imageUrl"></v-img>
           </v-card>
         </v-col>
@@ -59,11 +46,14 @@
     </div>
     <v-dialog v-model="dialog" max-width="640">
       <v-card>
+        <button style="margin-left:auto; display: block; font-size: 26px; margin-right:10px;" @click="dialog=false">X</button>
         <v-card-title class="headline">
           <v-img :src="selectedUrl"></v-img>
         </v-card-title>
         <v-card-text>
-          {{ selectedCaption }}
+          <h5>{{dayjsx()}}</h5>
+          <p style="font-size: 20px;">{{ selectedCaption }}</p>
+          <button style="font-size: 16px;" @click="deleteImage">Delete ❌</button>
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -71,10 +61,14 @@
 </template>
 
 <script lang="ts">
+import axios from 'axios';
 import { Component, Vue } from "vue-property-decorator";
 import { namespace } from "vuex-class";
 import { User, UserActions } from "@/types/user";
 import { Post } from "@/types/post";
+import * as dayjs from 'dayjs';
+import * as relativeTime from 'dayjs/plugin/relativeTime';
+dayjs.extend(relativeTime);
 
 const userModule = namespace("user");
 const postModule = namespace("post");
@@ -88,11 +82,29 @@ export default class Profile extends Vue {
   private dialog = false;
   private selectedUrl = "";
   private selectedCaption = "";
+  private selectedId = "";
+  private selectedCreatedDate = ""
 
-  selectImage(imageUrl: string, caption: string) {
+  dayjsx(){
+    return dayjs(this.selectedCreatedDate).fromNow()
+  }
+
+  selectImage(id: string, imageUrl: string, caption: string, selectedCreatedDate: string) {
     this.selectedUrl = imageUrl;
     this.selectedCaption = caption;
+    this.selectedId = id;
     this.dialog = true;
+    this.selectedCreatedDate = selectedCreatedDate;
+  }
+
+  async deleteImage(){
+    await axios.delete(`/post/${this.selectedId}`)
+    await this.fetchPosts();
+    this.dialog = false;
+  }
+
+  async mounted() {
+    await this.fetchPosts();
   }
 }
 </script>

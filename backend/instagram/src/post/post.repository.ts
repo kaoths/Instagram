@@ -35,6 +35,11 @@ export class PostRepository extends DynamoRepository<PostModel> {
     return this.findById(newPost._id);
   }
 
+  deletePost(postId: string): Promise<void> {
+    // throw new Error("Delete Post Method not implemented.");
+    return this.delete(postId);
+  }
+
   async findByuserId(userId: string): Promise<PostModel[]> {
     const params = {
       TableName: this.tableName,
@@ -62,7 +67,7 @@ export class PostRepository extends DynamoRepository<PostModel> {
       ExpressionAttributeValues: {
         ":uid": userId,
       },
-      Limit : limit,
+      Limit: limit,
     };
     const result = await this.documentClient.scan(params).promise();
     if (!result) return [];
